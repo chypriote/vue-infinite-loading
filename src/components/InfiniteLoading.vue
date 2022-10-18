@@ -2,7 +2,7 @@
   <div class="infinite-loading-container">
     <div
       class="infinite-status-prompt"
-      v-i="isShowSpinner"
+      v-if="isShowSpinner"
       :style="slotStyles.spinner">
       <slot name="spinner" v-bind="{ isFirstLoad }">
         <spinner :spinner="spinner" />
