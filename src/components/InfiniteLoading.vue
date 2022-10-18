@@ -2,7 +2,7 @@
   <div class="infinite-loading-container">
     <div
       class="infinite-status-prompt"
-      v-show="isShowSpinner"
+      v-i="isShowSpinner"
       :style="slotStyles.spinner">
       <slot name="spinner" v-bind="{ isFirstLoad }">
         <spinner :spinner="spinner" />
@@ -11,28 +11,28 @@
     <div
       class="infinite-status-prompt"
       :style="slotStyles.noResults"
-      v-show="isShowNoResults">
+      v-if="isShowNoResults">
       <slot name="no-results">
-        <component v-if="slots.noResults.render" :is="slots.noResults"></component>
+        <component v-if="typeof slots.noResults === 'object'" :is="slots.noResults"></component>
         <template v-else>{{ slots.noResults }}</template>
       </slot>
     </div>
     <div
       class="infinite-status-prompt"
       :style="slotStyles.noMore"
-      v-show="isShowNoMore">
+      v-if="isShowNoMore">
       <slot name="no-more">
-        <component v-if="slots.noMore.render" :is="slots.noMore"></component>
+        <component v-if="typeof slots.noMore === 'object'" :is="slots.noMore"></component>
         <template v-else>{{ slots.noMore }}</template>
       </slot>
     </div>
     <div
       class="infinite-status-prompt"
       :style="slotStyles.error"
-      v-show="isShowError">
+      v-if="isShowError">
       <slot name="error" :trigger="attemptLoad">
         <component
-          v-if="slots.error.render"
+          v-if="typeof slots.error === 'object'"
           :is="slots.error"
           :trigger="attemptLoad">
         </component>
@@ -118,6 +118,10 @@ export default {
     },
   },
   props: {
+    keepScrollTop: {
+      type: Boolean,
+      default: false,
+    },
     distance: {
       type: Number,
       default: config.props.distance,
@@ -175,6 +179,13 @@ export default {
         this.$nextTick(this.attemptLoad.bind(null, true));
       }
 
+      if (this.keepScrollTop) {
+        const scrollTop = this.getScrollParentOffset();
+        this.$nextTick(() => {
+          this.setScrollParentOffset(scrollTop);
+        });
+      }
+
       if (!ev || ev.target !== this) {
         warn(WARNINGS.STATE_CHANGER);
       }
@@ -185,6 +196,9 @@ export default {
 
       // force re-complation computed properties to fix the problem of get slot text delay
       this.$nextTick(() => {
+        if (this.direction === 'top') {
+          scrollBarStorage.restore(this.scrollParent);
+        }
         this.$forceUpdate();
       });
 
@@ -324,9 +338,9 @@ export default {
       }
 
       if (!result) {
-        if (elm.tagName === 'BODY') {
+        if (elm.tagName === 'BODY' || !elm.parentNode) {
           result = window;
-        } else if (!this.forceUseInfiniteWrapper && ['scroll', 'auto'].indexOf(getComputedStyle(elm).overflowY) > -1) {
+        } else if (!this.forceUseInfiniteWrapper && ['scroll', 'auto', 'overlay'].indexOf(getComputedStyle(elm).overflowY) > -1) {
           result = elm;
         } else if (elm.hasAttribute('infinite-wrapper') || elm.hasAttribute('data-infinite-wrapper')) {
           result = elm;
@@ -334,6 +348,19 @@ export default {
       }
 
       return result || this.getScrollParent(elm.parentNode);
+    },
+    getScrollParentOffset() {
+      const scrollParent = this.getScrollParent();
+      return (scrollParent === window
+        ? document.documentElement.scrollTop
+        : scrollParent.scrollTop
+      );
+    },
+    setScrollParentOffset(scrollTop) {
+      (this.scrollParent === window
+        ? document.documentElement
+        : this.scrollParent
+      ).scrollTop = scrollTop;
     },
   },
   destroyed() {
